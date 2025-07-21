@@ -17,8 +17,18 @@ flights_spark = spark\
     .option("inferSchema", "true") \
     .csv("C:/Users/Dev-Adrian/Documents/Spark/LibroSpark/src/flight-summary.csv")
 
+#Registrar tabla temporal
+flights_spark.createOrReplaceTempView("flights_spark")
+
 # Show the DataFrame
 
-flights_spark.sort("count").show(2)
+sqlway=spark.sql("SELECT dest_city,count(1) AS Catidad_Viajes FROM flights_spark GROUP BY dest_city")
+
+dataframeway = flights_spark \
+    .groupBy("dest_city") \
+    .count()
+sqlway.show(1000)
+dataframeway.show(10000)
+
 input("Presiona Enter para terminar...")
 spark.stop()
