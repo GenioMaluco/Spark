@@ -1,36 +1,50 @@
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2019-latest
+    user: root
     container_name: sqlserver
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourStrong!Passw0rd
+      - SA_PASSWORD=YourStrong@Passw0rd
       - MSSQL_PID=Developer
     ports:
       - "1433:1433"
     volumes:
-      -  sql_data:C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Data
-      - .\scripts:C:\scripts
+      - /sql_data:/var/opt/mssql
+      - ./scripts:/scripts
     networks:
       - spark-network
-    restart: unless-stopped
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile.windows
+  spark:
+    image: bitnami/spark:latest
+    environment:
+      - SPARK_MODE=master
     ports:
-      - "8501:8501"
+      - "8080:8080"
+      - "4040:4040"
     volumes:
-      - .\app:C:\app
+      - ./app:/app
+    networks:
+      - spark-network
     depends_on:
       - sqlserver
-    networks:
-      - spark-network
 
-networks:
-  spark-network:
-    driver: nat
+  app:
+    build: .
+    container_name: app
+    ports:
+      - "8500:8500"
+    volumes:
+      - ./app:/app
+    environment:
+      - PYSPARK_PYTHON=python3
+    depends_on:
+      - sqlserver
 
 volumes:
   sql_data:
+
+networks:
+  spark-network:
+    driver: bridge
