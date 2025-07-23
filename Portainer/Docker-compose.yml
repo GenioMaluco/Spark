@@ -1,0 +1,14 @@
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true  # Enhance security by preventing privilege escalation
+    ports:
+      - "9000:9000"  # Port for Portainer web interface
+    volumes:
+      - /etc/localtime:/etc/localtime:ro  # Synchronize time with host
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket for managing containers
+      - ./portainer_data:/data  # Persistent data storage
