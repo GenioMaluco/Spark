@@ -1,43 +1,38 @@
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2019-latest
+    user: root
     container_name: sqlserver
     environment:
       - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
       - MSSQL_PID=Developer
-      - MSSQL_TCP=1433
     ports:
       - "1433:1433"
     volumes:
-      - /sqlserver_data:/var/opt/mssql
+      - /sql_data:/var/opt/mssql
       - ./scripts:/scripts
     networks:
-      - spark_network
-    security_opt:
-      - "credentialspec=file://mssql.json"
-    user: "ContainerAdministrator"
-    command: 
-      - "/bin/bash"
-      - "-c"
-      - |
-        # Configura permisos
-        chown -R mssql /var/opt/mssql &&
-        chmod -R 777 /var/opt/mssql &&
-        # Inicia SQL Server
-        /opt/mssql/bin/sqlservr
+      - spark-network
+
   spark:
     image: bitnami/spark:latest
     environment:
       - SPARK_MODE=master
     ports:
       - "8080:8080"
-      - "4000:4040"
+      - "4040:4040"
     volumes:
       - ./app:/app
     networks:
-      - spark_network
+      - spark-network
+    depends_on:
+      - sqlserver
+
   app:
     build: .
+    container_name: app
     ports:
       - "8500:8500"
     volumes:
@@ -46,11 +41,10 @@ services:
       - PYSPARK_PYTHON=python3
     depends_on:
       - sqlserver
-      - spark
-    networks:
-      - spark_network
+
 volumes:
- sql_data:
+  sql_data:
+
 networks:
-  spark_network:
+  spark-network:
     driver: bridge
