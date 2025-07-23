@@ -1,0 +1,26 @@
+# Usa la imagen base de Windows con Python
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+# Instala Python
+RUN powershell.exe -Command \
+    $ProgressPreference = 'SilentlyContinue'; \
+    Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.9.7/python-3.9.7-amd64.exe" -OutFile python.exe; \
+    Start-Process python.exe -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait; \
+    Remove-Item python.exe
+
+# Instala ODBC Driver for SQL Server
+RUN powershell.exe -Command \
+    Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2223324" -OutFile msodbcsql.msi; \
+    Start-Process msiexec.exe -ArgumentList '/i msodbcsql.msi /quiet IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait; \
+    Remove-Item msodbcsql.msi
+
+WORKDIR C:/app
+
+# Copia los requirements primero para cachear la instalación
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia el resto de los archivos
+COPY . .
+
+CMD ["python", "-m", "streamlit", "run", "app/main.py", "--server.port=8501", "--server.address=0.0.0.0"]

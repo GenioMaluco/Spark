@@ -4,53 +4,33 @@ services:
     container_name: sqlserver
     environment:
       - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Passw0rd
       - MSSQL_PID=Developer
-      - MSSQL_TCP=1433
     ports:
       - "1433:1433"
     volumes:
-      - /sqlserver_data:/var/opt/mssql
-      - ./scripts:/scripts
+      -  sql_data:C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Data
+      - .\scripts:C:\scripts
     networks:
-      - spark_network
-    security_opt:
-      - "credentialspec=file://mssql.json"
-    user: "ContainerAdministrator"
-    command: 
-      - "/bin/bash"
-      - "-c"
-      - |
-        # Configura permisos
-        chown -R mssql /var/opt/mssql &&
-        chmod -R 777 /var/opt/mssql &&
-        # Inicia SQL Server
-        /opt/mssql/bin/sqlservr
-  spark:
-    image: bitnami/spark:latest
-    environment:
-      - SPARK_MODE=master
-    ports:
-      - "8080:8080"
-      - "4000:4040"
-    volumes:
-      - ./app:/app
-    networks:
-      - spark_network
+      - spark-network
+    restart: unless-stopped
+
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.windows
     ports:
-      - "8500:8500"
+      - "8501:8501"
     volumes:
-      - ./app:/app
-    environment:
-      - PYSPARK_PYTHON=python3
+      - .\app:C:\app
     depends_on:
       - sqlserver
-      - spark
     networks:
-      - spark_network
-volumes:
- sql_data:
+      - spark-network
+
 networks:
-  spark_network:
-    driver: bridge
+  spark-network:
+    driver: nat
+
+volumes:
+  sql_data:
