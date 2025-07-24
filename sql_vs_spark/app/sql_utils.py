@@ -1,36 +1,37 @@
 import pyodbc as odbc
 import pandas as pd
+import time  # Importación faltante
 
-def ObtenerVentas(server='(localdb)\\Luffy', database='StreamlitDemo', 
-                 username=None, password=None):
+def get_sql_connection(server="192.168.5.136, 18698", database="ReferenciasComerciales", username="Adrian.Araya", password="Soporte1990%"):
     try:
-        if username and password:
-            # Autenticación SQL estándar
-            cadena_conexion = (
-                "DRIVER={ODBC Driver 17 for SQL Server};"
-                f"SERVER={server};"
-                f"DATABASE={database};"
-                f"UID={username};"
-                f"PWD={password};"
-                "TrustServerCertificate=yes;"
-                "Connection Timeout=15;"
-            )
-        else:
-            # Autenticación Windows (SSPI)
-            cadena_conexion = (
-                "DRIVER={ODBC Driver 17 for SQL Server};"
-                f"SERVER={server};"
-                f"DATABASE={database};"
-                "TrustServerCertificate=yes;"
-                "Integrated Security=SSPI;"
-                "Connection Timeout=15;"
-            )
+        # Opción 1: Conexión directa a LocalDB
+        connection_string = (
+            "DRIVER={ODBC Driver 17 for SQL Server};"
+            f"UID={username};"
+            f"PWD={password};"
+            f"SERVER={server};"
+            f"DATABASE={database};"
+            "Connection Timeout=30;"
+        )
         
-        with odbc.connect(cadena_conexion) as conexion:
-            print("¡Conexión exitosa!")
-            consulta = "SELECT * FROM Sales"
-            return pd.read_sql(consulta, conexion)
+        
+        print(f"Intentando conectar con: {connection_string}")
+        conn = odbc.connect(connection_string)
+        print("✅ Conexión exitosa a LocalDB!")
+        return conn
+        
+    except Exception as e:
+        print(f"Error de conexión: {str(e)}")
+        print(f"aqui esta el error: {str(e)}")
+
+
+def execute_sql_query(conn, query):
+    try:
+        start_time = time.time()
+        df = pd.read_sql(query, conn)
+        execution_time = time.time() - start_time
+        return df, execution_time
             
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return pd.DataFrame()
+        print(f"Error en execute_sql_query: {str(e)}")
+        return pd.DataFrame(), 0  # Devuelve DataFrame vacío y tiempo 0
