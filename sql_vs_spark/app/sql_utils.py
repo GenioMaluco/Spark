@@ -2,15 +2,16 @@ import pyodbc as odbc
 import pandas as pd
 import time  # Importación faltante
 
-def get_sql_connection(server='(localdb)\\Luffy', database='master', username=None, password=None):
+def get_sql_connection(server="192.168.5.136, 18698", database="ReferenciasComerciales", username="Adrian.Araya", password="Soporte1990%"):
     try:
         # Opción 1: Conexión directa a LocalDB
         connection_string = (
             "DRIVER={ODBC Driver 17 for SQL Server};"
+            f"UID={username};"
+            f"PWD={password};"
             f"SERVER={server};"
             f"DATABASE={database};"
-            "Trusted_Connection=yes;"
-            "Connection Timeout=5;"
+            "Connection Timeout=30;"
         )
         
         
@@ -21,24 +22,8 @@ def get_sql_connection(server='(localdb)\\Luffy', database='master', username=No
         
     except Exception as e:
         print(f"Error de conexión: {str(e)}")
-        
-        # Intento alternativo con conexión compartida
-        try:
-            shared_connection = f"""
-                DRIVER={{ODBC Driver 17 for SQL Server}};
-                SERVER=(localdb)\.\\Luffy;
-                DATABASE={database};
-                "Trusted_Connection=yes;"
-            "Connection Timeout=5;"
-            """
-            print("Intentando con conexión compartida...")
-            return odbc.connect(shared_connection)
-        except Exception as fallback_error:
-            print(f"Error en conexión alternativa: {str(fallback_error)}")
-            raise RuntimeError(f"No se pudo conectar a SQL Server. Verifica: \n"
-                           f"1. Que LocalDB esté instalado y funcionando\n"
-                           f"2. Que el servicio 'SQL Server (Luffy)' esté ejecutándose\n"
-                           f"3. Que el ODBC Driver 17 esté instalado")
+        print(f"aqui esta el error: {str(e)}")
+
 
 def execute_sql_query(conn, query):
     try:

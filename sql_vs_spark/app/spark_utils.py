@@ -11,7 +11,7 @@ def get_spark_session():
         .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
         .getOrCreate()
 
-def execute_spark_query(spark, server="192.168.5.136", port="1433", database="master", 
+def execute_spark_query(spark, server="192.168.5.136", port="18698", database="ReferenciasComerciales", 
                       username="Adrian.Araya", password="Soporte1990%", query="SELECT TOP 5 name FROM sys.databases"):
     try:
         # Construcción correcta de la URL JDBC
