@@ -19,9 +19,10 @@ def get_spark_session():
 
     spark = SparkSession.builder \
         .appName("Spark SQL Server Connector") \
+        .config("spark.sql.debug.maxToStringFields", "1000") \
         .config("spark.sql.shuffle.partitions", "200") \
-        .config("spark.executor.memory", "2g") \
-        .config("spark.driver.memory", "1g") \
+        .config("spark.executor.memory", "16g") \
+        .config("spark.driver.memory", "8g") \
         .config("spark.jars", jdbc_path) \
         .config("spark.driver.extraClassPath", jdbc_path) \
         .config("spark.executor.extraClassPath", jdbc_path) \
@@ -34,7 +35,7 @@ def get_spark_session():
     return spark
 
 def execute_spark_query(spark, server="192.168.5.136", port="18698", database="ReferenciasComerciales", 
-                      username="Adrian.Araya", password="Soporte1990%", query="SELECT TOP (1000) identificacion, concat(nombre,' ',apellido1,' ', apellido2) as NombreCompleto FROM [ReferenciasComerciales].[dbo].DatoReferencia"):
+                      username="Adrian.Araya", password="Soporte1990%", query="bn"):
     try:
         # Construir URL JDBC con parámetros adicionales
         jdbc_url = (f"jdbc:sqlserver://{server}:{port};"
