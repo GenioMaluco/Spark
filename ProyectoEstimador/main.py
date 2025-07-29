@@ -1,8 +1,9 @@
-from spark_utils import get_spark_session, execute_spark_query
+from spark_utils import get_spark_session
 from pyspark.sql.functions import col,lit,current_date
 from datetime import datetime
 from dateutil import relativedelta
 import time
+from transformaciones import transformar_dataframe
 
 def main():
     spark = None
@@ -23,8 +24,30 @@ def main():
         jdbc_estimador= "jdbc:sqlserver://192.168.5.136:18698;databaseName=ReferenciasComerciales"
         start_load = time.time()
         #Cargar Tablas necesarias
-        df_DatoReferencia=spark.read.jdbc(jdbc_estimador,"dbo.DatoReferencia",properties=props)
-        df_ClienteFuente=spark.read.jdbc(jdbc_estimador,"dbo.ClienteFuente",properties=props)
+        df_DatoReferencia=spark.read.jdbc(jdbc_estimador,"dbo.DatoReferencia",properties=props)\
+            .select("Id",
+                    "fuente_informacion_id",
+                    "tipo_credito_id",
+                    "codigo_estado_cuenta_id",
+                    "identidicacion",
+                    "tipo_deudor_id",
+                    "tipo_informacion_id",
+                    "fecha_otorgamiento_credito",
+                    "fecha_vencimiento",
+                    "saldo_mora",
+                    "tipo_moneda_id",
+                    "cuotas_vencidas",
+                    "fecha_informacion",
+                    "tipo_deudor_id",
+                    "fecha_ultimo_pago",
+                    "dias_mora",
+                    "Estado"
+                    )
+
+        df_ClienteFuente=spark.read.jdbc(jdbc_estimador,"dbo.ClienteFuente",properties=props)\
+            .select("Id",
+                    "Cliente"
+                    )
         
         load_time = time.time() - start_load
         print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
@@ -47,10 +70,13 @@ def main():
             (col("d.estado") == 1)
             )
 
+        print(f"Muestra total{inner_join_df.columns}Resultado")
+
+        result_df = transformar_dataframe(inner_join_df)
         
 
         # Forzar ejecución y contar registros (para asegurar que la consulta se ejecute)
-        count = inner_join_df.count()
+        count = result_df.count()
 
         query_time = time.time() - start_query
         print(f"⏱ Tiempo de ejecución de la consulta: {query_time:.2f} segundos")
@@ -81,3 +107,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    
