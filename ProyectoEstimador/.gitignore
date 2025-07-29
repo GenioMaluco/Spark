@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Archivos generados por Spark
 derby.log
 metastore_db/
@@ -73,3 +74,20 @@ yarn-error.log*
 # Archivos de checkpoint de Spark
 checkpoint/
 *.checkpoint
+=======
+# Entornos virtuales
+.venv/
+venv/
+ENV/
+.Estimador/
+Estimador/
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de entorno
+.env
+.venv
+>>>>>>> 430c93ee7a4888fae3e2d0f36125793138fca35d

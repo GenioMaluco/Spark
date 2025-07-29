@@ -10,25 +10,27 @@ st.title("🚀 Comparación de Rendimiento: SQL Server vs Spark")
 
 # Sidebar - Configuración de conexión
 st.sidebar.header("🔧 Configuración de Conexión")
-server = st.sidebar.text_input("Servidor SQL", "localhost")
-database = st.sidebar.text_input("Base de datos", "performance_db")
-use_spark = st.sidebar.checkbox("Habilitar comparación con Spark", True)
+server = st.sidebar.text_input("Servidor SQL", "192.168.5.136")
+database = st.sidebar.text_input("Base de datos", "ReferenciasComerciales")
+username = st.sidebar.text_input("Usuario", "Adrian.Araya")
+password = st.sidebar.text_input("Contraseña", "Soporte1990%", type="password")
 
 # Consulta SQL de ejemplo
-default_query = """SELECT 
-    DATEPART(HOUR, timestamp) AS hour,
-    AVG(random_data) AS avg_value,
-    COUNT(*) AS record_count
-FROM large_table
-GROUP BY DATEPART(HOUR, timestamp)
-ORDER BY hour"""
+default_query = """SELECT TOP (100000) 
+      [Identificacion],
+      [Nombre]
+FROM [ReferenciasComerciales].[dbo].[ReferenciasCCSS]"""
 
 query = st.text_area("📝 Consulta SQL", default_query, height=150)
+
+# Opción para habilitar/deshabilitar Spark
+use_spark = st.sidebar.checkbox("Habilitar comparación con Spark", value=True)
 
 # Sección de ejecución
 if st.button("⚡ Ejecutar Comparación", type="primary"):
     if not query:
         st.error("⚠️ Por favor ingrese una consulta SQL válida")
+    
     else:
         # Contenedores para resultados
         sql_col, spark_col = st.columns(2)
@@ -38,13 +40,13 @@ if st.button("⚡ Ejecutar Comparación", type="primary"):
             with sql_col:
                 st.subheader("🔵 SQL Server")
                 with st.spinner("Conectando a SQL Server..."):
-                    conn = get_sql_connection(server, database)
+                    conn = get_sql_connection(server=server, database=database, username=username, password=password)
                 
                 with st.spinner("Ejecutando consulta SQL..."):
                     sql_df, sql_time = execute_sql_query(conn, query)
                 
                 st.success(f"✅ Tiempo SQL: {sql_time:.2f} segundos")
-                st.metric("Registros recuperados", len(sql_df))
+                st.metric("Registros recuperados", f"{len(sql_df):,}")
                 
                 # Mostrar resultados
                 st.dataframe(sql_df.head(), use_container_width=True)
@@ -66,12 +68,11 @@ if st.button("⚡ Ejecutar Comparación", type="primary"):
                         spark = get_spark_session()
                     
                     with st.spinner("Ejecutando consulta en Spark..."):
-                        spark_df, spark_time = execute_spark_query(
-                            spark, server, database, "sa", "YourStrong!Passw0rd", query
-                        )
+                        spark_df, spark_time = execute_spark_query(spark, server="192.168.5.136", port="18698", database="ReferenciasComerciales", 
+                                                                   username="Adrian.Araya", password="Soporte1990%", query=query)
                     
                     st.success(f"✅ Tiempo Spark: {spark_time:.2f} segundos")
-                    st.metric("Registros procesados", spark_df.count())
+                    st.metric("Registros procesados", f"{spark_df.count():,}")
                     
                     # Mostrar resultados
                     st.dataframe(spark_df.limit(5).toPandas(), use_container_width=True)
