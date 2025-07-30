@@ -1,5 +1,10 @@
-from pyspark.sql.functions import col, when, date_format, lit
+from functools import reduce
+from pyspark.sql.functions import col, when, date_format, lit, udf, explode
 from pyspark.sql import DataFrame
+from pyspark.sql.types import ArrayType, StructField, StructType,IntegerType,StringType
+from spark_utils import get_spark_session
+from historico import fnc_obtener_campo_historico
+
 
 def agregar_tipo_credito(df: DataFrame) -> DataFrame:
     try:
@@ -207,15 +212,56 @@ def formatear_fechas(df: DataFrame) -> DataFrame:
     except Exception as e:
         print(f"\n❌ Error en Formateo de fechas: {str(e)}")
 
-def transformar_dataframe(df: DataFrame) -> DataFrame:
+def obtener_datos_historicos(df: DataFrame, jdbc_url: str, props: dict) -> DataFrame:
+    spark = get_spark_session()
+    
+    try:
+        # Obtener valores únicos de parámetros
+        parametros = df.select("identificacion", "fuente_informacion_id").distinct().collect()
+        
+        results = []
+        for row in parametros:
+            identificacion = row["identificacion"]
+            fuente_id = row["fuente_informacion_id"]
+            
+            # Usar la implementación Spark en lugar de llamar a la función SQL
+            df_temp = fnc_obtener_campo_historico(
+                spark,
+                df,  # DataFrame completo de referencias
+                identificacion,
+                fuente_id
+            )
+            results.append(df_temp)
+        
+        # Combinar todos los resultados
+        if not results:
+            return spark.createDataFrame([], StructType([
+                StructField("Id", IntegerType()),
+                StructField("CedulaReferencia", StringType()),
+                StructField("Historico", StringType()),
+                StructField("HistoricoMes", StringType())
+            ]))
+        
+        return reduce(lambda a, b: a.unionByName(b), results)
+
+    except Exception as e:
+        print(f"\n❌ Error en obtener_datos_historicos: {str(e)}")
+        raise
+
+
+def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFrame:
     try:
         """Aplica todas las transformaciones al DataFrame"""
+        df = obtener_datos_historicos(df,jdbc_url,props)
+        print(df)
         df = agregar_tipo_credito(df)
         df = agregar_estado_operacion(df)
         df = agregar_tipo_deudor(df)
         df = agregar_sector_credito(df)
         df = agregar_campos_financieros(df)
         df = formatear_fechas(df)
+        return df
+        
     except Exception as e:
         print(f"\n❌ Error en Transformado: {str(e)}")
     

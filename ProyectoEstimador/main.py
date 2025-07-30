@@ -1,5 +1,6 @@
 from spark_utils import get_spark_session
 from pyspark.sql.functions import col,lit,current_date
+from pyspark.sql import DataFrame
 from datetime import datetime
 from dateutil import relativedelta
 import time
@@ -20,8 +21,10 @@ def main():
             "trustServerCertificate":"true"
             
         }
-
+        
         jdbc_estimador= "jdbc:sqlserver://192.168.5.136:18698;databaseName=ReferenciasComerciales"
+        jdbc_Historico= "jdbc:sqlserver://192.168.5.136:18698;databaseName=DatosDavivienda"        
+
         start_load = time.time()
         #Cargar Tablas necesarias
         df_DatoReferencia=spark.read.jdbc(jdbc_estimador,"dbo.DatoReferencia",properties=props)\
@@ -29,7 +32,7 @@ def main():
                     "fuente_informacion_id",
                     "tipo_credito_id",
                     "codigo_estado_cuenta_id",
-                    "identidicacion",
+                    "identificacion",
                     "tipo_deudor_id",
                     "tipo_informacion_id",
                     "fecha_otorgamiento_credito",
@@ -70,11 +73,22 @@ def main():
             (col("d.estado") == 1)
             )
 
-        print(f"Muestra total{inner_join_df.columns}Resultado")
+        result_df = transformar_dataframe(inner_join_df, 
+            jdbc_url=jdbc_Historico,
+            props={
+            "user": "Adrian.Araya",
+            "password": "Soporte1990%",
+            "driver": "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            "encrypt": "true", 
+            "trustServerCertificate":"true"
+            }
+        )
 
-        result_df = transformar_dataframe(inner_join_df)
+        print("\n📋 Columnas del DataFrame resultante:")
+        for i, col_name in enumerate(result_df.columns, 1):
+            print(f"{i}. {col_name}")
+
         
-
         # Forzar ejecución y contar registros (para asegurar que la consulta se ejecute)
         count = result_df.count()
 
@@ -82,21 +96,8 @@ def main():
         print(f"⏱ Tiempo de ejecución de la consulta: {query_time:.2f} segundos")
         print(f"📊 Número de registros obtenidos: {count}")
 
-        # Guardar en una carpeta 'data' en el directorio actual
-        #output_path = "data/referencias_comerciales"  # Ruta relativa
-        #inner_join_df.take(100)
-
-        #if count > 0:
-        #    print("\n📊 Muestra de resultados (primeras 10 filas):")
-        #    inner_join_df.write \
-        #        .mode("overwrite") \
-        #        .csv(output_path)
-        #print(f"✅ Datos guardados en: {output_path}")
-        
-        # Tiempo total de ejecución
         total_time = time.time() - start_time_total
         print(f"\n⏱ Tiempo total de ejecución: {total_time:.2f} segundos")
-        
                 
     except Exception as e:
         print(f"\n❌ Error en main: {str(e)}")
@@ -104,6 +105,8 @@ def main():
         if spark:
             spark.stop()
             print("\n🛑 SparkSession detenida")
+
+    
 
 if __name__ == "__main__":
     main()
