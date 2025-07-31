@@ -45,13 +45,16 @@ def main():
                     "fecha_ultimo_pago",
                     "dias_mora",
                     "Estado"
+                    ).filter(
+                        (col("identificacion")== "502720062")
                     )
 
         df_ClienteFuente=spark.read.jdbc(jdbc_estimador,"dbo.ClienteFuente",properties=props)\
             .select("Id",
                     "Cliente"
+                    ).filter(
+                        (col("Id") == "162")
                     )
-        
         load_time = time.time() - start_load
         print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
 
@@ -61,16 +64,20 @@ def main():
 
          # Medimos tiempo de la consulta
         start_query = time.time()
+
+        # Antes del join, renombrar las columnas Id
+        df_DatoReferencia = df_DatoReferencia.withColumnRenamed("fuente_informacion_id", "Id_referencia")
+        df_ClienteFuente = df_ClienteFuente.withColumnRenamed("Id", "Id_cliente")
         
         # Realizar el Inner Join entre ambas tablas
-        inner_join_df = df_DatoReferencia.alias("d").join(
-            df_ClienteFuente.alias("c"),
-            col("d.fuente_informacion_id") == col("c.Id"),
+        inner_join_df = df_DatoReferencia.join(
+            df_ClienteFuente,
+            col("Id_referencia") == col("Id_cliente"),
             "inner"
-        ).filter(
-            (col("d.fecha_informacion")>= fecha_tope_final) & 
-            (col("d.dias_mora") > 0) &
-            (col("d.estado") == 1)
+            ).filter(
+                (col("fecha_informacion")>= fecha_tope_final) & 
+                (col("dias_mora") > 0) &
+                (col("estado") == 1)
             )
 
         result_df = transformar_dataframe(inner_join_df, 
@@ -82,6 +89,10 @@ def main():
             "encrypt": "true", 
             "trustServerCertificate":"true"
             }
+        )
+
+        result_df.select(
+            
         )
 
         print("\n📋 Columnas del DataFrame resultante:")

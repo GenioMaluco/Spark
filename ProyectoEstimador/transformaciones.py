@@ -8,43 +8,46 @@ from historico import fnc_obtener_campo_historico
 
 def agregar_tipo_credito(df: DataFrame) -> DataFrame:
     try:
-        """Agrega la columna tipo_credito_id con descripciones"""
+        col_name = "tipo_credito_id"
+        
+        # Crea la nueva columna con un nombre diferente
         return df.withColumn(
-            "tipo_credito_id",
-            when(col("tipo_credito_id") == 1, "Tarjeta de Crédito comercial")
-            .when(col("tipo_credito_id") == 2, "Crédito a Plazo")
-            .when(col("tipo_credito_id") == 3, "Crédito Rotativo")
-            .when(col("tipo_credito_id") == 4, "Tarjeta de crédito internacional")
-            .when(col("tipo_credito_id") == 5, "Tarjeta de Crédito local")
-            .when(col("tipo_credito_id") == 6, "Hipotecario")
-            .when(col("tipo_credito_id") == 7, "Efectivo a 30 días Plazo")
-            .when(col("tipo_credito_id") == 8, "Prendario")
-            .when(col("tipo_credito_id") == 9, "Refinamiento")
-            .when(col("tipo_credito_id") == 10, "Otros")
-            .when(col("tipo_credito_id") == 11, "Pago bienes inmuebles")
-            .when(col("tipo_credito_id") == 12, "Pago patentes")
-            .when(col("tipo_credito_id") == 13, "LineaBlanca")
-            .when(col("tipo_credito_id") == 14, "Prestamo Comercial")
-            .when(col("tipo_credito_id") == 15, "Empresarial")
-            .when(col("tipo_credito_id") == 16, "Cuota nivelada")
-            .when(col("tipo_credito_id") == 17, "Linea Crédito")
-            .when(col("tipo_credito_id") == 18, "Fiduciario")
-            .when(col("tipo_credito_id") == 19, "Automovil Prendario")
-            .when(col("tipo_credito_id") == 20, "Capital Social")
-            .when(col("tipo_credito_id") == 21, "CPH-3 Fiduciario")
-            .when(col("tipo_credito_id") == 22, "CPH-3 Hipotecario")
-            .when(col("tipo_credito_id") == 23, "CPH-3 Sin Fiador")
-            .when(col("tipo_credito_id") == 24, "Hipotecario Consumo")
-            .when(col("tipo_credito_id") == 25, "Hipotecario Cuota Tradicional (Cerrado)")
-            .when(col("tipo_credito_id") == 26, "MULTIPLUSCRÉDI")
-            .when(col("tipo_credito_id") == 27, "Premium")
-            .when(col("tipo_credito_id") == 28, "Sin Fiador")
-            .when(col("tipo_credito_id") == 29, "Uso Multiple")
-            .when(col("tipo_credito_id") == 30, "Vivienda")
-            .otherwise(None).alias("tipo_credito_id"),
+            col_name,  # Nuevo nombre para evitar conflictos
+            when(col(col_name) == 1, "Tarjeta de Crédito comercial")
+            .when(col(col_name) == 2, "Crédito a Plazo")
+            .when(col(col_name) == 3, "Crédito Rotativo")
+            .when(col(col_name) == 4, "Tarjeta de crédito internacional")
+            .when(col(col_name) == 5, "Tarjeta de Crédito local")
+            .when(col(col_name) == 6, "Hipotecario")
+            .when(col(col_name) == 7, "Efectivo a 30 días Plazo")
+            .when(col(col_name) == 8, "Prendario")
+            .when(col(col_name) == 9, "Refinamiento")
+            .when(col(col_name) == 10, "Otros")
+            .when(col(col_name) == 11, "Pago bienes inmuebles")
+            .when(col(col_name) == 12, "Pago patentes")
+            .when(col(col_name) == 13, "LineaBlanca")
+            .when(col(col_name) == 14, "Prestamo Comercial")
+            .when(col(col_name) == 15, "Empresarial")
+            .when(col(col_name) == 16, "Cuota nivelada")
+            .when(col(col_name) == 17, "Linea Crédito")
+            .when(col(col_name) == 18, "Fiduciario")
+            .when(col(col_name) == 19, "Automovil Prendario")
+            .when(col(col_name) == 20, "Capital Social")
+            .when(col(col_name) == 21, "CPH-3 Fiduciario")
+            .when(col(col_name) == 22, "CPH-3 Hipotecario")
+            .when(col(col_name) == 23, "CPH-3 Sin Fiador")
+            .when(col(col_name) == 24, "Hipotecario Consumo")
+            .when(col(col_name) == 25, "Hipotecario Cuota Tradicional (Cerrado)")
+            .when(col(col_name) == 26, "MULTIPLUSCRÉDI")
+            .when(col(col_name) == 27, "Premium")
+            .when(col(col_name) == 28, "Sin Fiador")
+            .when(col(col_name) == 29, "Uso Multiple")
+            .when(col(col_name) == 30, "Vivienda")
+            .otherwise(None)
         )
     except Exception as e:
         print(f"\n❌ Error en TipoCredito: {str(e)}")
+        raise
 
 def agregar_estado_operacion(df: DataFrame) -> DataFrame:
     try:
@@ -148,8 +151,8 @@ def agregar_campos_financieros(df: DataFrame) -> DataFrame:
         """Agrega campos relacionados con saldos y categorías"""
                 
         # Saldos por tipo de moneda
-        df = df.withColumn("SaldoLocalColones", when(col("tipo_moneda_id") == 1, col("d.saldo_mora")))
-        df = df.withColumn("SaldoLocalDolares", when(col("tipo_moneda_id") == 2, col("d.saldo_mora")))
+        df = df.withColumn("SaldoLocalColones", when(col("tipo_moneda_id") == 1, col("saldo_mora")))
+        df = df.withColumn("SaldoLocalDolares", when(col("tipo_moneda_id") == 2, col("saldo_mora")))
         
         # Categorías SUGEFF - Separar en operaciones individuales
         df = df.withColumn(
@@ -205,24 +208,28 @@ def agregar_campos_financieros(df: DataFrame) -> DataFrame:
 def formatear_fechas(df: DataFrame) -> DataFrame:
     try:
         """Formatea las columnas de fecha"""
-        df = df.withColumn("FechaOtorgado", date_format(col("d.fecha_otorgamiento_credito"), "dd/MM/yyyy"))
-        df = df.withColumn("fecha_informacion", date_format(col("d.fecha_informacion"), "dd/MM/yyyy"))
-        df = df.withColumn("Fecha_Ultimo_Pago", date_format(col("d.fecha_ultimo_pago"), "dd/MM/yyyy"))
+        df = df.withColumn("FechaOtorgado", date_format(col("fecha_otorgamiento_credito"), "dd/MM/yyyy"))
+        df = df.withColumn("fecha_informacion", date_format(col("fecha_informacion"), "dd/MM/yyyy"))
+        df = df.withColumn("Fecha_Ultimo_Pago", date_format(col("fecha_ultimo_pago"), "dd/MM/yyyy"))
         return df
     except Exception as e:
         print(f"\n❌ Error en Formateo de fechas: {str(e)}")
 
 def obtener_datos_historicos(df: DataFrame, jdbc_url: str, props: dict) -> DataFrame:
+
     spark = get_spark_session()
     
     try:
-        # Obtener valores únicos de parámetros
-        parametros = df.select("identificacion", "fuente_informacion_id").distinct().collect()
         
+
+        # Obtener valores únicos de parámetros
+        
+        parametros = df.select("identificacion", "Id_referencia").distinct().collect()
+
         results = []
         for row in parametros:
             identificacion = row["identificacion"]
-            fuente_id = row["fuente_informacion_id"]
+            fuente_id = row["Id_referencia"]
             
             # Usar la implementación Spark en lugar de llamar a la función SQL
             df_temp = fnc_obtener_campo_historico(
@@ -232,7 +239,7 @@ def obtener_datos_historicos(df: DataFrame, jdbc_url: str, props: dict) -> DataF
                 fuente_id
             )
             results.append(df_temp)
-        
+
         # Combinar todos los resultados
         if not results:
             return spark.createDataFrame([], StructType([
@@ -241,44 +248,89 @@ def obtener_datos_historicos(df: DataFrame, jdbc_url: str, props: dict) -> DataF
                 StructField("Historico", StringType()),
                 StructField("HistoricoMes", StringType())
             ]))
-        
+                
         return reduce(lambda a, b: a.unionByName(b), results)
 
     except Exception as e:
         print(f"\n❌ Error en obtener_datos_historicos: {str(e)}")
         raise
 
+def renombrarColumnas(df: DataFrame) -> DataFrame:
+    try:
+        df = df.withColumnRenamed("Id", "Num_Referencia") \
+                    .withColumnRenamed("Identificacion", "NumCedula_Cliente") \
+                    .withColumnRenamed("Cliente", "Entidad") \
+                    .withColumnRenamed("tipo_credito_id", "TipoOperacion") \
+                    .withColumnRenamed("codigo_estado_cuenta_id", "EstadoOperacion") \
+                    .withColumnRenamed("tipo_deudor_id", "Tipo_Deudor") \
+                    .withColumnRenamed("tipo_informacion_id", "Sector_Credito") \
+                    .withColumnRenamed("fecha_otorgamiento_credito", "Fecha_Otorgado") \
+                    .withColumnRenamed("fecha_vencimiento", "Fecha_Vencimiento") \
+                    .withColumnRenamed("saldo_mora", "Principal") \
+                    .withColumnRenamed("tipo_moneda_id", "TipoMoneda") \
+                    .withColumnRenamed("cuotas_vencidas", "CuotasVencidas") \
+                    .withColumnRenamed("fecha_informacion", "Fec_Actualizacion") \
+                    .withColumnRenamed("fecha_ultimo_pago", "Fecha_Ultimo_Pago") \
+                    .withColumnRenamed("dias_mora", "DiasAtraso") \
+                    .withColumnRenamed("FechaHistorico", "FechaHistorico") \
+                    .withColumnRenamed("Historico", "Historico") \
+                    .withColumnRenamed("HistoricoMes", "Historico_Mes")
+        
+        return df
+    except Exception as e:
+        print(f"\n❌ Error en Renombrando: {str(e)}")
+
+def OrdenarColumnas(df: DataFrame) -> DataFrame:
+    try:
+        df = df.alias("d").select("Num_Referencia",
+                       "NumCedula_Cliente",
+                       "Entidad",
+                       "TipoOperacion",
+                       "EstadoOperacion",
+                       "Tipo_Deudor",
+                       #AQUI DEBE IR LA GARANTIA VACIA
+                       "Sector_Credito",
+                       "Fecha_Otorgado",
+                       "Fecha_Vencimiento",
+                       "Principal",
+                       "SaldoLocalColones",
+                       "SaldoLocalDolares",
+                       "DiasAtraso",
+                       "CuotasVencidas",
+                       "Historico",
+                       "Fec_Actualizacion",
+                       "Fecha_Ultimo_Pago",
+                       "Cat_Sugef_Colones",
+                       "Dias_Atraso_Dolares",
+                       "Cat_Sugef_Dolares",
+                       "Num_Referencia",
+                       "Historico_Mes"
+                       ) 
+                    
+        return df
+    except Exception as e:
+        print(f"\n❌ Error en Ordenado Columnas: {str(e)}")
 
 def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFrame:
     try:
         """Aplica todas las transformaciones al DataFrame"""
         df = obtener_datos_historicos(df,jdbc_url,props)
-        print(df)
         df = agregar_tipo_credito(df)
         df = agregar_estado_operacion(df)
         df = agregar_tipo_deudor(df)
         df = agregar_sector_credito(df)
         df = agregar_campos_financieros(df)
         df = formatear_fechas(df)
+        df = renombrarColumnas(df)
+        df = OrdenarColumnas(df)
+        df.show()
+
         return df
         
     except Exception as e:
         print(f"\n❌ Error en Transformado: {str(e)}")
     
-    # Seleccionar y renombrar columnas finales
-    try:
-        df = df.select(
-        col("d.Id").alias("Num_referencia"),
-        col("d.identificacion").alias("NumCedula"),
-        col("c.Cliente").alias("Entidad"),
-        col("d.fecha_vencimiento").alias("FechaVencimiento"),
-        col("d.saldo_mora").alias("Principal"),
-        col("d.cuotas_vencidas").alias("Cuota")
-    )
-
-    except Exception as e:
-        print(f"\n❌ Error en Renombrado: {str(e)}")
-   
+    
 
 
     
