@@ -96,7 +96,7 @@ def agregar_tipo_deudor(df: DataFrame) -> DataFrame:
     try:
         """Agrega la columna TipoDeudor con descripciones"""
         return df.withColumn(
-            "TipoDeudor",
+            "tipo_deudor_id",
             when(col("tipo_deudor_id") == 1, "Principal")
             .when(col("tipo_deudor_id") == 2, "Codeudor")
             .when(col("tipo_deudor_id") == 3, "Fiador")
@@ -110,7 +110,7 @@ def agregar_sector_credito(df: DataFrame) -> DataFrame:
     try:
         """Agrega la columna SectorCredito con descripciones"""
         return df.withColumn(
-            "SectorCredito",
+            "tipo_informacion_id",
             when(col("tipo_informacion_id") == 1, "Banco Estatal")
             .when(col("tipo_informacion_id") == 2, "Banca Privada")
             .when(col("tipo_informacion_id") == 3, "Financiera Regulada")
@@ -287,23 +287,27 @@ def OrdenarColumnas(df: DataFrame) -> DataFrame:
                        "Entidad",
                        "TipoOperacion",
                        "EstadoOperacion",
-                       "Tipo_Deudor",
-                       #AQUI DEBE IR LA GARANTIA VACIA
-                       "Sector_Credito",
-                       "Fecha_Otorgado",
-                       "Fecha_Vencimiento",
+                       col("Tipo_Deudor").alias("TipoDeudor"),
+                       lit(None).cast("string").alias("TipoGarantia"),
+                       col("Sector_Credito").alias("SectorCredito"),
+                       col("Fecha_Otorgado").alias("FechaOtorgado"),
+                       col("Fecha_Vencimiento").alias("FechaVencimiento"),
                        "Principal",
                        "SaldoLocalColones",
                        "SaldoLocalDolares",
+                       lit(None).cast("double").alias("SaldoMoraColones"),
+                       lit(None).cast("double").alias("SaldoMoraDolares"),
+                       col("CuotasVencidas").alias("Cuota"),
                        "DiasAtraso",
                        "CuotasVencidas",
                        "Historico",
                        "Fec_Actualizacion",
+                       col("Tipo_Deudor").alias("Responsabilidad"),
                        "Fecha_Ultimo_Pago",
                        "Cat_Sugef_Colones",
                        "Dias_Atraso_Dolares",
                        "Cat_Sugef_Dolares",
-                       "Num_Referencia",
+                       col("Num_Referencia").alias("Codigo_Unico"),
                        "Historico_Mes"
                        ) 
                     
@@ -323,7 +327,7 @@ def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFram
         df = formatear_fechas(df)
         df = renombrarColumnas(df)
         df = OrdenarColumnas(df)
-        df.show()
+        #df.show()
 
         return df
         

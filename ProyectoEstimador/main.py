@@ -46,15 +46,15 @@ def main():
                     "dias_mora",
                     "Estado"
                     ).filter(
-                        (col("identificacion")== "502720062")
+                        col("Identificacion")=="113310453"
                     )
 
         df_ClienteFuente=spark.read.jdbc(jdbc_estimador,"dbo.ClienteFuente",properties=props)\
             .select("Id",
-                    "Cliente"
+                    "Cliente",
+                    "VersionDatos"
                     ).filter(
-                        (col("Id") == "162")
-                    )
+                        col("Id")==162)
         load_time = time.time() - start_load
         print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
 
@@ -72,13 +72,16 @@ def main():
         # Realizar el Inner Join entre ambas tablas
         inner_join_df = df_DatoReferencia.join(
             df_ClienteFuente,
-            col("Id_referencia") == col("Id_cliente"),
+            (col("Id_referencia") == col("Id_cliente")) &
+            (col("fecha_informacion")==col("VersionDatos")),
             "inner"
             ).filter(
                 (col("fecha_informacion")>= fecha_tope_final) & 
                 (col("dias_mora") > 0) &
                 (col("estado") == 1)
             )
+        
+        print(f"📊 Número de registros obtenidos: {inner_join_df.count()}")
 
         result_df = transformar_dataframe(inner_join_df, 
             jdbc_url=jdbc_Historico,
@@ -89,10 +92,6 @@ def main():
             "encrypt": "true", 
             "trustServerCertificate":"true"
             }
-        )
-
-        result_df.select(
-            
         )
 
         print("\n📋 Columnas del DataFrame resultante:")
@@ -109,6 +108,13 @@ def main():
 
         total_time = time.time() - start_time_total
         print(f"\n⏱ Tiempo total de ejecución: {total_time:.2f} segundos")
+
+        # Escribir el DataFrame a la base de datos
+        result_df.write \
+            .jdbc(url=jdbc_Historico,
+                table="SPK.CLI_REFERENCIASCREDITICIAS_BackUp",
+                mode="append",  # o "append" para agregar sin borrar existentes
+                properties=props)
                 
     except Exception as e:
         print(f"\n❌ Error en main: {str(e)}")
