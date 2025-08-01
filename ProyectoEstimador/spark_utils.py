@@ -33,9 +33,7 @@ def get_spark_session():
     java_import(jvm, "com.microsoft.sqlserver.jdbc.SQLServerDriver")
     
     return spark
-
-def execute_spark_query(spark, server="192.168.5.136", port="18698", database="ReferenciasComerciales", 
-                      username="Adrian.Araya", password="Soporte1990%", query="bn"):
+  
     try:
         # Construir URL JDBC con parámetros adicionales
         jdbc_url = (f"jdbc:sqlserver://{server}:{port};"

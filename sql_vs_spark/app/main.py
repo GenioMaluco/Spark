@@ -40,7 +40,7 @@ if st.button("⚡ Ejecutar Comparación", type="primary"):
             with sql_col:
                 st.subheader("🔵 SQL Server")
                 with st.spinner("Conectando a SQL Server..."):
-                    conn = get_sql_connection(server="192.168.5.136, 18698", database="ReferenciasComerciales", username="Adrian.Araya", password="Soporte1990%")
+                    conn = get_sql_connection(server=server, database=database, username=username, password=password)
                 
                 with st.spinner("Ejecutando consulta SQL..."):
                     sql_df, sql_time = execute_sql_query(conn, query)

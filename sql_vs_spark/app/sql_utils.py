@@ -2,7 +2,18 @@ import pyodbc as odbc
 import pandas as pd
 import time  # Importación faltante
 
-def get_sql_connection(server="192.168.5.136, 18698", database="ReferenciasComerciales", username="Adrian.Araya", password="Soporte1990%"):
+import os
+
+def get_sql_connection(
+    server=None,
+    database=None,
+    username=None,
+    password=None
+):
+    server = server or os.getenv("SQL_SERVER")
+    database = database or os.getenv("SQL_DATABASE")
+    username = username or os.getenv("SQL_USERNAME")
+    password = password or os.getenv("SQL_PASSWORD")
     try:
         # Opción 1: Conexión directa a LocalDB
         connection_string = (
