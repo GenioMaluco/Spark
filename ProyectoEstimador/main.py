@@ -45,16 +45,13 @@ def main():
                     "fecha_ultimo_pago",
                     "dias_mora",
                     "Estado"
-                    ).filter(
-                        col("Identificacion")=="113310453"
-                    )
+                    ).filter(col("Identificacion")=="113310453")
 
         df_ClienteFuente=spark.read.jdbc(jdbc_estimador,"dbo.ClienteFuente",properties=props)\
             .select("Id",
                     "Cliente",
                     "VersionDatos"
-                    ).filter(
-                        col("Id")==162)
+                    ).filter(col("Id")==162)
         load_time = time.time() - start_load
         print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
 
@@ -113,7 +110,7 @@ def main():
         result_df.write \
             .jdbc(url=jdbc_Historico,
                 table="SPK.CLI_REFERENCIASCREDITICIAS_BackUp",
-                mode="append",  # o "append" para agregar sin borrar existentes
+                mode="overwrite",  # o "append" para agregar sin borrar existentes
                 properties=props)
                 
     except Exception as e:
