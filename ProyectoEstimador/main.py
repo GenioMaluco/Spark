@@ -5,11 +5,14 @@ from datetime import datetime
 from dateutil import relativedelta
 import time
 from transformaciones import transformar_dataframe
+import multiprocessing
 
 def main():
+    
     spark = None
     try:
         start_time_total = time.time()
+
         spark = get_spark_session()
         print("✅ SparkSession creada correctamente")
         #Conexiones JDBC
@@ -45,13 +48,17 @@ def main():
                     "fecha_ultimo_pago",
                     "dias_mora",
                     "Estado"
-                    ).filter(col("Identificacion")=="113310453")
+                    ).filter(
+                        #(col("Identificacion")=="113310453") &
+                        (col("dias_mora") > 0) &
+                        col("estado") == 1
+                    )
 
         df_ClienteFuente=spark.read.jdbc(jdbc_estimador,"dbo.ClienteFuente",properties=props)\
             .select("Id",
                     "Cliente",
                     "VersionDatos"
-                    ).filter(col("Id")==162)
+                    ).filter(col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=24))
         load_time = time.time() - start_load
         print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
 
@@ -78,7 +85,10 @@ def main():
                 (col("estado") == 1)
             )
         
-        print(f"📊 Número de registros obtenidos: {inner_join_df.count()}")
+        InnerTime = time.time() - start_query
+        print(f"⏱ Tiempo de ejecución del Inner Join: {InnerTime:.2f} segundos")
+        
+        #print(f"📊 Número de registros obtenidos: {inner_join_df.count()}")
 
         result_df = transformar_dataframe(inner_join_df, 
             jdbc_url=jdbc_Historico,
