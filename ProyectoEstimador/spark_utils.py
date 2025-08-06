@@ -14,13 +14,18 @@ def get_spark_session():
 
     spark = SparkSession.builder \
         .appName("Spark SQL Server Connector") \
+        .master("local[32]") \
         .config("spark.sql.debug.maxToStringFields", "1000") \
         .config("spark.sql.shuffle.partitions", "200") \
-        .config("spark.executor.memory", "16g") \
-        .config("spark.driver.memory", "8g") \
+        .config("spark.executor.memory", "36g") \
+        .config("spark.driver.memory", "20g") \
+        .config("spark.memory.fraction", "0.8") \
+        .config("spark.memory.Storagefraction", "0.3") \
+        .config("sparl.deault.parallelism", "64") \
         .config("spark.jars", jdbc_path) \
         .config("spark.driver.extraClassPath", jdbc_path) \
         .config("spark.executor.extraClassPath", jdbc_path) \
+        .config("spark.ui.enabled", "true") \
         .getOrCreate()
     
     # Cargar manualmente el driver en la JVM

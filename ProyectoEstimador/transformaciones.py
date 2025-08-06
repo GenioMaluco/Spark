@@ -1,11 +1,8 @@
-from functools import reduce
-from pyspark.sql.functions import col, when, date_format, lit, udf, explode
+
+from pyspark.sql.functions import col, when, date_format, lit
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, StructField, StructType,IntegerType,StringType
-from spark_utils import get_spark_session
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
-from dateutil.relativedelta import relativedelta
 
 
 def agregar_tipo_credito(df: DataFrame) -> DataFrame:
@@ -217,46 +214,6 @@ def formatear_fechas(df: DataFrame) -> DataFrame:
     except Exception as e:
         print(f"\n❌ Error en Formateo de fechas: {str(e)}")
 
-def obtener_datos_historicos(df: DataFrame, jdbc_url: str, props: dict) -> DataFrame:
-
-    spark = get_spark_session()
-    
-    try:
-        
-
-        # Obtener valores únicos de parámetros
-        
-        parametros = df.select("identificacion", "Id_referencia").distinct().collect()
-
-        results = []
-        for row in parametros:
-            identificacion = row["identificacion"]
-            fuente_id = row["Id_referencia"]
-            
-            # Usar la implementación Spark en lugar de llamar a la función SQL
-            df_temp = fnc_obtener_campo_historico(
-                spark,
-                df,  # DataFrame completo de referencias
-                identificacion,
-                fuente_id
-            )
-            results.append(df_temp)
-
-        # Combinar todos los resultados
-        if not results:
-            return spark.createDataFrame([], StructType([
-                StructField("Id", IntegerType()),
-                StructField("CedulaReferencia", StringType()),
-                StructField("Historico", StringType()),
-                StructField("HistoricoMes", StringType())
-            ]))
-                
-        return reduce(lambda a, b: a.unionByName(b), results)
-
-    except Exception as e:
-        print(f"\n❌ Error en obtener_datos_historicos: {str(e)}")
-        raise
-
 def renombrarColumnas(df: DataFrame) -> DataFrame:
     try:
         df = df.withColumnRenamed("Id", "Num_Referencia") \
@@ -277,7 +234,6 @@ def renombrarColumnas(df: DataFrame) -> DataFrame:
                     .withColumnRenamed("FechaHistorico", "FechaHistorico") \
                     .withColumnRenamed("Historico", "Historico") \
                     .withColumnRenamed("HistoricoMes", "Historico_Mes")
-        
         return df
     except Exception as e:
         print(f"\n❌ Error en Renombrando: {str(e)}")
@@ -321,7 +277,7 @@ def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFram
 
     try:
         """Aplica todas las transformaciones al DataFrame"""
-        df = obtener_datos_historicos(df,jdbc_url,props)
+        df = procesamiento_historico_masivo(df)
         df = agregar_tipo_credito(df)
         df = agregar_estado_operacion(df)
         df = agregar_tipo_deudor(df)
@@ -330,144 +286,152 @@ def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFram
         df = formatear_fechas(df)
         df = renombrarColumnas(df)
         df = OrdenarColumnas(df)
-        #df.show()
 
         return df
         
     except Exception as e:
         print(f"\n❌ Error en Transformado: {str(e)}")
        
-def fnc_obtener_campo_historico(spark, df_referencias, cedula: str, fuente_referencia: int):
-    """
-    Devuelve el dataset completo con columnas históricas adicionales
-    """
-    
+def procesamiento_historico_masivo(df_referencias):
     try:
-        # 1. Filtrar datos para la cédula y fuente específica
-        df_filtrado = df_referencias.filter(
-            (F.col("Identificacion") == cedula) & 
-            (F.col("Id_referencia") == fuente_referencia) &
-            (F.col("dias_mora") >= 1)
-        )
+        # 1. Filtrar solo registros con mora (1 paso para todos los datos)
+        df_filtrado = df_referencias.filter(F.col("dias_mora") >= 1)
         
-        # 2. Filtrar últimos 4 años
+        # 2. Filtrar últimos 4 años (aplicado a todo el dataset)
         df_filtrado = df_filtrado.filter(
             F.col("fecha_informacion") >= F.add_months(F.current_date(), -48)
-        )       
-
-        if df_filtrado.isEmpty():
-            return spark.createDataFrame([], schema=df_referencias.schema
-                ).withColumn("Historico", F.lit("")
-                ).withColumn("HistoricoMes", F.lit(""))
+        )
         
-        # 3. Obtener fechas extremas
-        fecha_data = df_filtrado.agg(
-            F.max("fecha_informacion").alias("max_fecha"),
-            F.min("fecha_informacion").alias("min_fecha")
-        ).first()
-        
-        fecha_final = fecha_data["max_fecha"]
-        fecha_inicio = fecha_final - relativedelta(months=23)
+        # 3. Obtener fecha máxima por Identificacion/Fuente (en una sola operación)
+        window_spec = Window.partitionBy("Identificacion", "Id_referencia")
 
-        # 4. Generar secuencia de meses
-        df_meses = spark.sql(f"""
-            SELECT explode(sequence(
-                to_date('{fecha_inicio.strftime("%Y-%m-%d")}'),
-                to_date('{fecha_final.strftime("%Y-%m-%d")}'),
-                interval 1 month
-            )) as FechaHistorico
-        """)
-        # 5. Procesamiento de datos
+        df_filtrado = df_filtrado.withColumn(
+            "max_fecha", 
+            F.max("fecha_informacion").over(window_spec)
+        )
+        
+
+        # 4. Calcular fecha_inicio (23 meses antes de max_fecha)
+        df_filtrado = df_filtrado.withColumn(
+            "fecha_inicio",
+            F.expr("add_months(max_fecha, -23)")
+        )
+
+        # 5. Generar secuencia de meses para cada grupo (usando join lateral)
+        df_meses = df_filtrado.select(
+            "Identificacion", 
+            "Id_referencia",
+            F.expr("""
+                explode(sequence(
+                    date_trunc('month', fecha_inicio), 
+                    date_trunc('month', max_fecha), 
+                    interval 1 month
+                )) as FechaHistorico
+            """)
+        ).distinct()
+        
+        # 6. Agregación por periodo (todos los grupos a la vez)
         df_proceso = df_filtrado.groupBy(
+            "Identificacion",
+            "Id_referencia",
             F.date_format("fecha_informacion", "yyyyMM").alias("periodo"),
             F.date_format("fecha_informacion", "MMM-yy").alias("mes_str"),
         ).agg(
             F.first("fecha_informacion").alias("fecha"),
-            F.sum("dias_mora").alias("dias_mora_total"),
+            F.first("max_fecha").alias("max_fecha"),
+            F.sum("dias_mora").alias("dias_mora_total")
         )
-                
-        # 6. Calcular calificación
         
+        # 7. Calificación (aplicada a todos los registros)
         df_calificado = df_proceso.withColumn(
             "calificacion",
-            F.when(F.col("dias_mora_total").between(1, 30), F.lit(1))
-            .when(F.col("dias_mora_total").between(31, 60), F.lit(2))
-            .when(F.col("dias_mora_total").between(61, 90), F.lit(3))
-            .when(F.col("dias_mora_total").between(91, 120), F.lit(4))
-            .when(F.col("dias_mora_total").between(121, 150), F.lit(5))
-            .otherwise(F.lit(6))
-        )        
-
-        # 7. Join con todos los meses
-        df_completo = df_meses.join(
-            df_calificado,
-            F.date_format("FechaHistorico", "yyyyMM") == F.col("periodo"),
-            "left_outer"
+            F.when(F.col("dias_mora_total").between(1, 30), 1)
+             .when(F.col("dias_mora_total").between(31, 60), 2)
+             .when(F.col("dias_mora_total").between(61, 90), 3)
+             .when(F.col("dias_mora_total").between(91, 120), 4)
+             .when(F.col("dias_mora_total").between(121, 150), 5)
+             .otherwise(6)
         )
 
-        # 8. Ordenar por fecha para el histórico
-        window = Window.orderBy("FechaHistorico")
+        # 8. Join con meses (todos los grupos)
 
-        df_resultado = df_completo.withColumn(
+        df_completo = df_meses.alias("c").join(
+        df_calificado.alias("d"),       
+        (df_meses["Identificacion"] == df_calificado["Identificacion"]) &
+        (df_meses["Id_referencia"] == df_calificado["Id_referencia"]) &
+        (F.date_format(df_meses["FechaHistorico"], "yyyyMM") == df_calificado["periodo"]),
+        "left_outer"
+        )
+
+        columnas_finales = [
+            'c.Identificacion',
+            'c.Id_referencia',
+            'd.periodo',
+            'd.mes_str',  # Usamos la versión con mayúscula
+            'c.fechaHistorico',
+            'd.fecha',
+            'd.calificacion',
+            'd.max_fecha'
+        ]
+        
+        df_renombrado = df_completo.select(*columnas_finales)
+
+        df_renombrado = df_renombrado.withColumnRenamed("FechaHistorico", "FechaHistorico") \
+            .withColumnRenamed("Identificacion", "Identificacion") \
+            .withColumnRenamed("Id_referencia", "Id_referencia") \
+            .withColumnRenamed("periodo", "periodo") \
+            .withColumnRenamed("mes_str", "mes_str") \
+            .withColumnRenamed("fecha", "fecha") \
+            .withColumnRenamed("calificacion", "calificacion")\
+            .withColumnRenamed("max_fecha", "max_fecha")
+
+        # 9. Ventana por grupo para construir histórico
+        window_historico = Window.partitionBy("Identificacion", "Id_referencia").orderBy("FechaHistorico")
+
+        df_resultado = df_renombrado.groupBy("Identificacion", "Id_referencia", "FechaHistorico","max_fecha").agg(
+            F.first("calificacion").alias("calificacion"),
+            F.first("mes_str").alias("mes_str")
+        ).withColumn(
             "Historico",
             F.array_join(
                 F.collect_list(
                     F.coalesce(F.col("calificacion").cast("string"), F.lit("X"))
-                ).over(window),
+                ).over(window_historico),
                 "-"
             )
         ).withColumn(
             "HistoricoMes",
             F.array_join(
                 F.collect_list(
-                    F.coalesce(F.col("mes_str"), 
-                    F.date_format("FechaHistorico", "MMM-yy"))
-                ).over(window),
+                    F.coalesce(F.col("mes_str"), F.date_format("FechaHistorico", "MMM-yy"))
+                ).over(window_historico),
                 "/"
             )
-        ).filter(
-            F.col("FechaHistorico") == fecha_final  # Solo la fila más reciente
-        ).withColumn(
-            "Identificacion", F.lit(cedula)
-        ).withColumn(
-            "Id_referencia", F.lit(fuente_referencia)
         )
 
-        df_resultado = df_referencias.alias("c").join(
-            df_resultado.alias("d"),
-            (df_referencias["Identificacion"] == df_resultado["Identificacion"]) & 
-            (df_referencias["Id_referencia"] == df_resultado["Id_referencia"]),
+        # 10. Join final con datos originales
+        df_final = df_referencias.join(
+            df_resultado,
+            ["Identificacion", "Id_referencia"],
             "left"
+        ).select(
+            'Id', 'tipo_credito_id', 'codigo_estado_cuenta_id', 'Identificacion',
+            'tipo_deudor_id', 'tipo_informacion_id', 'fecha_otorgamiento_credito',
+            'fecha_vencimiento', 'saldo_mora', 'tipo_moneda_id', 'cuotas_vencidas',
+            'fecha_informacion', 'fecha_ultimo_pago', 'dias_mora', 'Cliente',
+            'FechaHistorico', 'Historico', 'HistoricoMes'
         )
-        columnas_finales = [
-            'c.Id',
-            'c.tipo_credito_id',
-            'c.codigo_estado_cuenta_id',
-            'c.Identificacion',  # Usamos la versión con mayúscula
-            'c.tipo_deudor_id',
-            'c.tipo_informacion_id',
-            'c.fecha_otorgamiento_credito',
-            'c.fecha_vencimiento',
-            'c.saldo_mora',
-            'c.tipo_moneda_id',
-            'c.cuotas_vencidas',
-            'c.fecha_informacion',
-            'c.fecha_ultimo_pago',
-            'c.dias_mora',
-            'c.Cliente',
-            'd.FechaHistorico',
-            'd.Historico',
-            'd.HistoricoMes'
-        ]
-
-        # Seleccionar solo las columnas únicas
-        df_resultado = df_resultado.select(columnas_finales)
-        return df_resultado
-
+        
+        #Filtrar registros donde FechaHistorico coincide con fecha_informacion
+        df_final=df_final.filter(
+            F.date_format("FechaHistorico","yyyy-MM") == F.date_format("fecha_informacion", "yyyy-MM")
+        )
+        
+        return df_final
+        
     except Exception as e:
-        print(f"\n❌ Error en fnc_obtener_campo_historico: {str(e)}")
+        print(f"\n❌ Error en procesamiento masivo: {str(e)}")
         raise
-
     
     
    
