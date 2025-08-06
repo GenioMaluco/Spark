@@ -49,7 +49,7 @@ def main():
                     "dias_mora",
                     "Estado"
                     ).filter(
-                        #(col("Identificacion")=="113310453") &
+                        (col("Identificacion")=="502720062") &
                         (col("dias_mora") > 0) &
                         col("estado") == 1
                     )
@@ -88,7 +88,7 @@ def main():
         InnerTime = time.time() - start_query
         print(f"⏱ Tiempo de ejecución del Inner Join: {InnerTime:.2f} segundos")
         
-        #print(f"📊 Número de registros obtenidos: {inner_join_df.count()}")
+        print(f"📊 Número de registros obtenidos: {inner_join_df.count()}")
 
         result_df = transformar_dataframe(inner_join_df, 
             jdbc_url=jdbc_Historico,

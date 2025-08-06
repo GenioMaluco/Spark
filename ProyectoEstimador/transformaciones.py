@@ -521,6 +521,7 @@ def procesamiento_historico_masivo(df_referencias):
             F.date_format("fecha_informacion", "MMM-yy").alias("mes_str")
         ).agg(
             F.first("fecha_informacion").alias("fecha"),
+            F.first("max_fecha").alias("max_fecha"),
             F.sum("dias_mora").alias("dias_mora_total")
         )
 
@@ -554,22 +555,22 @@ def procesamiento_historico_masivo(df_referencias):
             'd.mes_str',  # Usamos la versión con mayúscula
             'c.fechaHistorico',
             'd.fecha',
-            'd.calificacion',
+            'd.calificacion'
         ]
 
-        df_completo.select(columnas_finales)
-        df_completo.explain(mode="formatted")
-        # Renombrar columnas para evitar conflictos
-        df_renombrado = df_completo.select(
-            *[F.col(col).alias(col.split(".")[-1]) for col in columnas_finales]
-           
-        )
+        df_renombrado = df_completo.select(*columnas_finales)
+
+        df_renombrado = df_renombrado.withColumnRenamed("FechaHistorico", "FechaHistorico") \
+            .withColumnRenamed("Identificacion", "Identificacion") \
+            .withColumnRenamed("Id_referencia", "Id_referencia") \
+            .withColumnRenamed("periodo", "periodo") \
+            .withColumnRenamed("mes_str", "mes_str") \
+            .withColumnRenamed("fecha", "fecha") \
+            .withColumnRenamed("calificacion", "calificacion")
         
         # 9. Ventana por grupo para construir histórico
         window_historico = Window.partitionBy("Identificacion", "Id_referencia").orderBy("FechaHistorico")
 
-        df_renombrado.printSchema()
-        
         df_resultado = df_renombrado.groupBy("Identificacion", "Id_referencia", "FechaHistorico").agg(
             F.first("calificacion").alias("calificacion"),
             F.first("mes_str").alias("mes_str")
@@ -585,17 +586,11 @@ def procesamiento_historico_masivo(df_referencias):
             "HistoricoMes",
             F.array_join(
                 F.collect_list(
-                    F.coalesce(F.col("mes_str"), F.date_format("c.FechaHistorico", "MMM-yy"))
+                    F.coalesce(F.col("mes_str"), F.date_format("FechaHistorico", "MMM-yy"))
                 ).over(window_historico),
                 "/"
             )
-        ).filter(
-            F.col("c.FechaHistorico") == F.col("max_fecha")
         )
-        
-        print(df_resultado.printSchema())
-        print("Procesamiento de datos completado, ahora calculando calificaciones...")
-        
 
         # 10. Join final con datos originales
         df_final = df_referencias.join(
@@ -610,7 +605,6 @@ def procesamiento_historico_masivo(df_referencias):
             'FechaHistorico', 'Historico', 'HistoricoMes'
         )
 
-        
         
         return df_final
         
