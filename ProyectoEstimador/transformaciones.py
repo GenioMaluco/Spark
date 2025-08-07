@@ -434,7 +434,7 @@ def procesamiento_historico_masivo(df_referencias):
         df_final = df_referencias.join(
             df_resultado_final,
             ["Identificacion", "Id_referencia"],
-            "inner"
+            "LEFT"
         ).filter(
             F.col("fecha_informacion") == F.col("fecha_informacion_mas_reciente")
         ).select(

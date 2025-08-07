@@ -51,21 +51,24 @@ def main():
                     ).filter(
                         #(col("Identificacion")=="206850212") &
                         (col("dias_mora") > 0) &
-                        col("estado") == 1
+                        (col("estado") == 1)
                     )
 
         df_ClienteFuente=spark.read.jdbc(jdbc_estimador,"dbo.ClienteFuente",properties=props)\
             .select("Id",
                     "Cliente",
                     "VersionDatos"
-                    ).filter(col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=48))
+                    ).filter(
+                        (col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=23)) &
+                        (col("estado") == 1)
+                        )
         
         load_time = time.time() - start_load
         print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
 
         #Definicion de fechas
         fecha_tope_incio = datetime.now().date()
-        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=48)
+        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=23)
 
          # Medimos tiempo de la consulta
         start_query = time.time()
@@ -98,11 +101,6 @@ def main():
             "trustServerCertificate":"true"
             }
         )
-
-        print("\n📋 Columnas del DataFrame resultante:")
-        for i, col_name in enumerate(result_df.columns, 1):
-            print(f"{i}. {col_name}")
-
         # Escribir el DataFrame a la base de datos
         result_df.write \
             .jdbc(url=jdbc_Historico,
