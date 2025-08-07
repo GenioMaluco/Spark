@@ -49,7 +49,7 @@ def main():
                     "dias_mora",
                     "Estado"
                     ).filter(
-                        #(col("Identificacion")=="113310453") &
+                        #(col("Identificacion")=="206850212") &
                         (col("dias_mora") > 0) &
                         col("estado") == 1
                     )
@@ -58,14 +58,14 @@ def main():
             .select("Id",
                     "Cliente",
                     "VersionDatos"
-                    ).filter(col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=24))
+                    ).filter(col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=48))
         
         load_time = time.time() - start_load
         print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
 
         #Definicion de fechas
         fecha_tope_incio = datetime.now().date()
-        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=24)
+        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=48)
 
          # Medimos tiempo de la consulta
         start_query = time.time()
@@ -73,23 +73,20 @@ def main():
         # Antes del join, renombrar las columnas Id
         df_DatoReferencia = df_DatoReferencia.withColumnRenamed("fuente_informacion_id", "Id_referencia")
         df_ClienteFuente = df_ClienteFuente.withColumnRenamed("Id", "Id_cliente")
+
         
         # Realizar el Inner Join entre ambas tablas
         inner_join_df = df_DatoReferencia.join(
             df_ClienteFuente,
+            
             (col("Id_referencia") == col("Id_cliente")) &
             (col("fecha_informacion")==col("VersionDatos")),
-            "inner"
+            "Left"
             ).filter(
                 (col("fecha_informacion")>= fecha_tope_final) & 
                 (col("dias_mora") > 0) &
                 (col("estado") == 1)
             )
-        
-        InnerTime = time.time() - start_query
-        print(f"⏱ Tiempo de ejecución del Inner Join: {InnerTime:.2f} segundos")
-        
-        #print(f"📊 Número de registros obtenidos: {inner_join_df.count()}")
 
         result_df = transformar_dataframe(inner_join_df, 
             jdbc_url=jdbc_Historico,
@@ -114,11 +111,11 @@ def main():
                 properties=props)
         
         # Forzar ejecución y contar registros (para asegurar que la consulta se ejecute)
-        #count = result_df.count()
+        count = result_df.count()
 
         query_time = time.time() - start_query
         print(f"⏱ Tiempo de ejecución de la consulta: {query_time:.2f} segundos")
-        #print(f"📊 Número de registros obtenidos: {count}")
+        print(f"📊 Número de registros obtenidos: {count}")
 
         total_time = time.time() - start_time_total
         print(f"\n⏱ Tiempo total de ejecución: {total_time:.2f} segundos")
