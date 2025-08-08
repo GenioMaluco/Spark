@@ -5,7 +5,6 @@ from datetime import datetime
 from dateutil import relativedelta
 import time
 from transformaciones import transformar_dataframe
-import multiprocessing
 
 def main():
     
