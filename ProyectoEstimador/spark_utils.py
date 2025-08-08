@@ -1,5 +1,4 @@
 from pyspark.sql import SparkSession
-import time
 from py4j.java_gateway import java_import
 
 # Configuración de rutas para Windows

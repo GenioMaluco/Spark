@@ -273,33 +273,16 @@ def OrdenarColumnas(df: DataFrame) -> DataFrame:
     except Exception as e:
         print(f"\n❌ Error en Ordenado Columnas: {str(e)}")
 
-def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFrame:
 
-    try:
-        """Aplica todas las transformaciones al DataFrame"""
-        df = procesamiento_historico_masivo(df)
-        df = agregar_tipo_credito(df)
-        df = agregar_estado_operacion(df)
-        df = agregar_tipo_deudor(df)
-        df = agregar_sector_credito(df)
-        df = agregar_campos_financieros(df)
-        df = formatear_fechas(df)
-        df = renombrarColumnas(df)
-        df = OrdenarColumnas(df)
-
-        return df
-        
-    except Exception as e:
-        print(f"\n❌ Error en Transformado: {str(e)}")
        
 def procesamiento_historico_masivo(df_referencias):
-    try:
 
-        # 1. Filtrar últimos 4 años (48 meses)
+    try:
         df_filtrado = df_referencias.filter(
-            F.col("fecha_informacion") >= F.add_months(F.current_date(), -48)
+            F.col("fecha_informacion") >= F.add_months(F.current_date(), -23)
         )
         
+
         # 2. Obtener fecha máxima por Identificacion/Id_referencia
         window_spec = Window.partitionBy("Identificacion", "Id_referencia")
         
@@ -383,9 +366,8 @@ def procesamiento_historico_masivo(df_referencias):
             F.col("datos.dias_mora_total").alias("dias_mora_total"),
             F.col("datos.fecha_original").alias("fecha_original")
         )
-        
         # 10. Crear ventana ordenada por fecha para construir histórico
-        window_historico = Window.partitionBy("Identificacion", "Id_referencia").orderBy("FechaHistorico")
+        #window_historico = Window.partitionBy("Identificacion", "Id_referencia").orderBy("FechaHistorico")
 
         # 11. Construir el histórico usando solo groupBy y collect_list
         # Primero crear un struct para mantener el orden
@@ -420,7 +402,7 @@ def procesamiento_historico_masivo(df_referencias):
         df_resultado_final = df_historico_completo.join(
             df_totales,
             ["Identificacion", "Id_referencia"],
-            "left"
+            "INNER"
         ).select(
             "Identificacion",
             "Id_referencia", 
@@ -429,7 +411,7 @@ def procesamiento_historico_masivo(df_referencias):
             "Historico",
             "HistoricoMes"
         )
-        
+
         # 15. JOIN final con datos originales
         df_final = df_referencias.join(
             df_resultado_final,
@@ -453,3 +435,22 @@ def procesamiento_historico_masivo(df_referencias):
         import traceback
         traceback.print_exc()
         raise
+
+def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFrame:
+
+    try:
+        """Aplica todas las transformaciones al DataFrame"""
+        df = procesamiento_historico_masivo(df)
+        df = agregar_tipo_credito(df)
+        df = agregar_estado_operacion(df)
+        df = agregar_tipo_deudor(df)
+        df = agregar_sector_credito(df)
+        df = agregar_campos_financieros(df)
+        df = formatear_fechas(df)
+        df = renombrarColumnas(df)
+        df = OrdenarColumnas(df)
+
+        return df
+        
+    except Exception as e:
+        print(f"\n❌ Error en Transformado: {str(e)}")

@@ -9,9 +9,12 @@ import multiprocessing
 
 def main():
     
+     # Medimos tiempo de la consulta
+    start_query = time.time()
+
     spark = None
     try:
-        start_time_total = time.time()
+        
 
         spark = get_spark_session()
         print("✅ SparkSession creada correctamente")
@@ -26,9 +29,7 @@ def main():
         }
         
         jdbc_estimador= "jdbc:sqlserver://192.168.5.136:18698;databaseName=ReferenciasComerciales"
-        jdbc_Historico= "jdbc:sqlserver://192.168.5.136:18698;databaseName=DatosDavivienda"        
-
-        start_load = time.time()
+        jdbc_Historico= "jdbc:sqlserver://192.168.5.136:18698;databaseName=DatosDavivienda"       
         #Cargar Tablas necesarias
         df_DatoReferencia=spark.read.jdbc(jdbc_estimador,"dbo.DatoReferencia",properties=props)\
             .select("Id",
@@ -60,18 +61,12 @@ def main():
                     "VersionDatos"
                     ).filter(
                         (col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=23)) &
-                        (col("estado") == 1)
-                        )
-        
-        load_time = time.time() - start_load
-        print(f"⏱ Tiempo de carga de datos: {load_time:.2f} segundos")
+                        (col("estado") == 1) 
+                    )
 
         #Definicion de fechas
         fecha_tope_incio = datetime.now().date()
         fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=23)
-
-         # Medimos tiempo de la consulta
-        start_query = time.time()
 
         # Antes del join, renombrar las columnas Id
         df_DatoReferencia = df_DatoReferencia.withColumnRenamed("fuente_informacion_id", "Id_referencia")
@@ -81,14 +76,13 @@ def main():
         # Realizar el Inner Join entre ambas tablas
         inner_join_df = df_DatoReferencia.join(
             df_ClienteFuente,
-            
-            (col("Id_referencia") == col("Id_cliente")) &
-            (col("fecha_informacion")==col("VersionDatos")),
-            "Left"
+            col("Id_referencia") == col("Id_cliente"),
+            "inner"
             ).filter(
-                (col("fecha_informacion")>= fecha_tope_final) & 
-                (col("dias_mora") > 0) &
-                (col("estado") == 1)
+              (col("fecha_informacion")>= fecha_tope_final)
+            & (col("dias_mora") > 0) 
+            & (col("estado") == 1) 
+            & (col("fecha_informacion")==col("VersionDatos"))
             )
 
         result_df = transformar_dataframe(inner_join_df, 
@@ -109,13 +103,14 @@ def main():
                 properties=props)
         
         # Forzar ejecución y contar registros (para asegurar que la consulta se ejecute)
-        count = result_df.count()
+        #count = result_df.count()
 
         query_time = time.time() - start_query
         print(f"⏱ Tiempo de ejecución de la consulta: {query_time:.2f} segundos")
-        print(f"📊 Número de registros obtenidos: {count}")
+        #print(f"📊 Número de registros obtenidos: {count}")
 
-        total_time = time.time() - start_time_total
+        total_time = time.time() - start_query
+
         print(f"\n⏱ Tiempo total de ejecución: {total_time:.2f} segundos")
                 
     except Exception as e:
