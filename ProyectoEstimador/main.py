@@ -49,7 +49,7 @@ def main():
                     "dias_mora",
                     "Estado"
                     ).filter(
-                        #(col("Identificacion")=="206850212") &
+                        (col("Identificacion")=="206850212") &
                         (col("dias_mora") > 0) &
                         (col("estado") == 1)
                     )
@@ -59,13 +59,12 @@ def main():
                     "Cliente",
                     "VersionDatos"
                     ).filter(
-                        (col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=23)) &
-                        (col("estado") == 1) 
+                        (col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=24)) 
                     )
 
         #Definicion de fechas
         fecha_tope_incio = datetime.now().date()
-        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=23)
+        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=24)
 
         # Antes del join, renombrar las columnas Id
         df_DatoReferencia = df_DatoReferencia.withColumnRenamed("fuente_informacion_id", "Id_referencia")
@@ -75,13 +74,11 @@ def main():
         # Realizar el Inner Join entre ambas tablas
         inner_join_df = df_DatoReferencia.join(
             df_ClienteFuente,
-            col("Id_referencia") == col("Id_cliente"),
+            (col("Id_referencia") == col("Id_cliente")) &
+            (col("VersionDatos") == col("fecha_informacion")),
             "inner"
             ).filter(
               (col("fecha_informacion")>= fecha_tope_final)
-            & (col("dias_mora") > 0) 
-            & (col("estado") == 1) 
-            & (col("fecha_informacion")==col("VersionDatos"))
             )
 
         result_df = transformar_dataframe(inner_join_df, 
@@ -94,19 +91,19 @@ def main():
             "trustServerCertificate":"true"
             }
         )
+
         # Escribir el DataFrame a la base de datos
         result_df.write \
             .jdbc(url=jdbc_Historico,
-                table="SPK.CLI_REFERENCIASCREDITICIAS_BackUp",
+                table="SPK.CLI_REFERENCIASCREDITICIAS_Backup",
                 mode="overwrite",  # o "append" para agregar sin borrar existentes
                 properties=props)
         
         # Forzar ejecución y contar registros (para asegurar que la consulta se ejecute)
-        #count = result_df.count()
 
         query_time = time.time() - start_query
         print(f"⏱ Tiempo de ejecución de la consulta: {query_time:.2f} segundos")
-        #print(f"📊 Número de registros obtenidos: {count}")
+        
 
         total_time = time.time() - start_query
 

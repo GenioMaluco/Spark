@@ -253,8 +253,8 @@ def OrdenarColumnas(df: DataFrame) -> DataFrame:
                        "Principal",
                        "SaldoLocalColones",
                        "SaldoLocalDolares",
-                       lit(None).cast("double").alias("SaldoMoraColones"),
-                       lit(None).cast("double").alias("SaldoMoraDolares"),
+                       col("SaldoLocalColones").alias("SaldoMoraColones"),
+                       col("SaldoLocalDolares").alias("SaldoMoraDolares"),
                        col("CuotasVencidas").alias("Cuota"),
                        "DiasAtraso",
                        "CuotasVencidas",
@@ -268,18 +268,15 @@ def OrdenarColumnas(df: DataFrame) -> DataFrame:
                        col("Num_Referencia").alias("Codigo_Unico"),
                        "Historico_Mes"
                        ) 
-                    
         return df
     except Exception as e:
         print(f"\n❌ Error en Ordenado Columnas: {str(e)}")
-
-
        
 def procesamiento_historico_masivo(df_referencias):
 
     try:
         df_filtrado = df_referencias.filter(
-            F.col("fecha_informacion") >= F.add_months(F.current_date(), -23)
+            F.col("fecha_informacion") >= F.add_months(F.current_date(), -24)
         )
         
 
@@ -294,7 +291,7 @@ def procesamiento_historico_masivo(df_referencias):
         # 3. Calcular fecha_inicio (23 meses antes de max_fecha para tener 24 meses total)
         df_con_fechas = df_con_max.withColumn(
             "fecha_inicio",
-            F.expr("add_months(max_fecha, -23)")  # CAMBIO: -23 en lugar de -48
+            F.expr("add_months(max_fecha, -24)")  # CAMBIO: -23 en lugar de -48
         )
         
         # 4. Obtener todas las combinaciones únicas de Identificacion/Id_referencia que tienen datos
@@ -342,7 +339,7 @@ def procesamiento_historico_masivo(df_referencias):
              .when(F.col("dias_mora_total") > 150, 6)
              .otherwise(6)
         )
-        
+
         # 8. JOIN: Combinar todos los meses con datos reales (LEFT JOIN)
         df_historico_completo = df_meses_completo.alias("meses").join(
             df_calificado.alias("datos"),
@@ -442,10 +439,10 @@ def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFram
         """Aplica todas las transformaciones al DataFrame"""
         df = procesamiento_historico_masivo(df)
         df = agregar_tipo_credito(df)
-        df = agregar_estado_operacion(df)
         df = agregar_tipo_deudor(df)
         df = agregar_sector_credito(df)
         df = agregar_campos_financieros(df)
+        df = agregar_estado_operacion(df)
         df = formatear_fechas(df)
         df = renombrarColumnas(df)
         df = OrdenarColumnas(df)
