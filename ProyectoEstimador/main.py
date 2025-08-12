@@ -25,7 +25,6 @@ def main():
             "fecha_vencimiento", "saldo_mora", "tipo_moneda_id", "cuotas_vencidas", 
             "fecha_informacion", "tipo_deudor_id", "fecha_ultimo_pago", "dias_mora", "Estado"
         ).filter(
-            (col("Identificacion") == '206850212') &
             (col("dias_mora") > 0) & (col("estado") == 1)
         )
 

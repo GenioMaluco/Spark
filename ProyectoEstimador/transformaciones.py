@@ -291,6 +291,8 @@ def procesamiento_historico_masivo(df_referencias):
         df_con_fechas = df_con_max.withColumn(
             "fecha_inicio",
             F.add_months(F.current_date(), -24)
+        ).filter(
+            F.col("fecha_inicio") <= F.col("max_fecha")  # Filtro adicional de seguridad
         )
         
         # 4. Obtener todas las combinaciones únicas de Identificacion/Id_referencia que tienen datos
