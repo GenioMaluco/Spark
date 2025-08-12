@@ -253,8 +253,8 @@ def OrdenarColumnas(df: DataFrame) -> DataFrame:
                        "Principal",
                        "SaldoLocalColones",
                        "SaldoLocalDolares",
-                       lit(None).cast("double").alias("SaldoMoraColones"),
-                       lit(None).cast("double").alias("SaldoMoraDolares"),
+                       col("SaldoLocalColones").alias("SaldoMoraColones"),
+                       col("SaldoLocalDolares").alias("SaldoMoraDolares"),
                        col("CuotasVencidas").alias("Cuota"),
                        "DiasAtraso",
                        "CuotasVencidas",
@@ -268,33 +268,29 @@ def OrdenarColumnas(df: DataFrame) -> DataFrame:
                        col("Num_Referencia").alias("Codigo_Unico"),
                        "Historico_Mes"
                        ) 
-                    
         return df
     except Exception as e:
         print(f"\n❌ Error en Ordenado Columnas: {str(e)}")
-
-
        
 def procesamiento_historico_masivo(df_referencias):
-
+    
     try:
         df_filtrado = df_referencias.filter(
-            F.col("fecha_informacion") >= F.add_months(F.current_date(), -23)
+            F.col("fecha_informacion") >= F.add_months(F.current_date(), -24)
         )
-        
 
         # 2. Obtener fecha máxima por Identificacion/Id_referencia
         window_spec = Window.partitionBy("Identificacion", "Id_referencia")
         
         df_con_max = df_filtrado.withColumn(
-            "max_fecha", 
-            F.max("fecha_informacion").over(window_spec)
+            "max_fecha",
+            col("VersionDatos")  # Usar fecha actual como referencia
         )
         
         # 3. Calcular fecha_inicio (23 meses antes de max_fecha para tener 24 meses total)
         df_con_fechas = df_con_max.withColumn(
             "fecha_inicio",
-            F.expr("add_months(max_fecha, -23)")  # CAMBIO: -23 en lugar de -48
+            F.add_months(F.current_date(), -24)
         )
         
         # 4. Obtener todas las combinaciones únicas de Identificacion/Id_referencia que tienen datos
@@ -342,7 +338,7 @@ def procesamiento_historico_masivo(df_referencias):
              .when(F.col("dias_mora_total") > 150, 6)
              .otherwise(6)
         )
-        
+
         # 8. JOIN: Combinar todos los meses con datos reales (LEFT JOIN)
         df_historico_completo = df_meses_completo.alias("meses").join(
             df_calificado.alias("datos"),
@@ -350,7 +346,7 @@ def procesamiento_historico_masivo(df_referencias):
             (F.col("meses.Id_referencia") == F.col("datos.Id_referencia")) &
             (F.date_format(F.col("meses.FechaHistorico"), "yyyyMM") == F.col("datos.periodo")),
             "left"
-        )
+        )  
         
         # 9. Preparar datos para el histórico con X para meses sin datos
         df_preparado = df_historico_completo.select(
@@ -366,11 +362,7 @@ def procesamiento_historico_masivo(df_referencias):
             F.col("datos.dias_mora_total").alias("dias_mora_total"),
             F.col("datos.fecha_original").alias("fecha_original")
         )
-        # 10. Crear ventana ordenada por fecha para construir histórico
-        #window_historico = Window.partitionBy("Identificacion", "Id_referencia").orderBy("FechaHistorico")
 
-        # 11. Construir el histórico usando solo groupBy y collect_list
-        # Primero crear un struct para mantener el orden
         df_con_orden = df_preparado.withColumn(
             "fecha_orden", F.col("FechaHistorico")
         ).withColumn(
@@ -391,7 +383,7 @@ def procesamiento_historico_masivo(df_referencias):
                 "/"
             ).alias("HistoricoMes")
         )
-                
+
         # 13. Calcular totales por Identificacion/Id_referencia
         df_totales = df_calificado.groupBy("Identificacion", "Id_referencia").agg(
             F.sum("dias_mora_total").alias("DiasMoraTotal"),
@@ -418,7 +410,7 @@ def procesamiento_historico_masivo(df_referencias):
             ["Identificacion", "Id_referencia"],
             "LEFT"
         ).filter(
-            F.col("fecha_informacion") == F.col("fecha_informacion_mas_reciente")
+            F.col("VersionDatos") == F.col("fecha_informacion")
         ).select(
             'Id', 'tipo_credito_id', 'codigo_estado_cuenta_id', 'Identificacion',
             'Id_referencia', 'tipo_deudor_id', 'tipo_informacion_id', 
@@ -442,10 +434,10 @@ def transformar_dataframe(df: DataFrame, jdbc_url: str, props: dict) -> DataFram
         """Aplica todas las transformaciones al DataFrame"""
         df = procesamiento_historico_masivo(df)
         df = agregar_tipo_credito(df)
-        df = agregar_estado_operacion(df)
         df = agregar_tipo_deudor(df)
         df = agregar_sector_credito(df)
         df = agregar_campos_financieros(df)
+        df = agregar_estado_operacion(df)
         df = formatear_fechas(df)
         df = renombrarColumnas(df)
         df = OrdenarColumnas(df)
