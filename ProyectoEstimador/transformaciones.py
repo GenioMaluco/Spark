@@ -273,12 +273,11 @@ def OrdenarColumnas(df: DataFrame) -> DataFrame:
         print(f"\n❌ Error en Ordenado Columnas: {str(e)}")
        
 def procesamiento_historico_masivo(df_referencias):
-
+    
     try:
         df_filtrado = df_referencias.filter(
-            F.col("fecha_informacion") >= F.add_months(F.current_date(), -24)
+            F.col("fecha_informacion") >= F.add_months(F.current_date(), -23)
         )
-        
 
         # 2. Obtener fecha máxima por Identificacion/Id_referencia
         window_spec = Window.partitionBy("Identificacion", "Id_referencia")
@@ -291,7 +290,7 @@ def procesamiento_historico_masivo(df_referencias):
         # 3. Calcular fecha_inicio (23 meses antes de max_fecha para tener 24 meses total)
         df_con_fechas = df_con_max.withColumn(
             "fecha_inicio",
-            F.expr("add_months(max_fecha, -24)")  # CAMBIO: -23 en lugar de -48
+            F.expr("add_months(max_fecha, -23)")  
         )
         
         # 4. Obtener todas las combinaciones únicas de Identificacion/Id_referencia que tienen datos
@@ -347,7 +346,7 @@ def procesamiento_historico_masivo(df_referencias):
             (F.col("meses.Id_referencia") == F.col("datos.Id_referencia")) &
             (F.date_format(F.col("meses.FechaHistorico"), "yyyyMM") == F.col("datos.periodo")),
             "left"
-        )
+        )  
         
         # 9. Preparar datos para el histórico con X para meses sin datos
         df_preparado = df_historico_completo.select(
@@ -363,11 +362,7 @@ def procesamiento_historico_masivo(df_referencias):
             F.col("datos.dias_mora_total").alias("dias_mora_total"),
             F.col("datos.fecha_original").alias("fecha_original")
         )
-        # 10. Crear ventana ordenada por fecha para construir histórico
-        #window_historico = Window.partitionBy("Identificacion", "Id_referencia").orderBy("FechaHistorico")
 
-        # 11. Construir el histórico usando solo groupBy y collect_list
-        # Primero crear un struct para mantener el orden
         df_con_orden = df_preparado.withColumn(
             "fecha_orden", F.col("FechaHistorico")
         ).withColumn(
@@ -388,7 +383,7 @@ def procesamiento_historico_masivo(df_referencias):
                 "/"
             ).alias("HistoricoMes")
         )
-                
+
         # 13. Calcular totales por Identificacion/Id_referencia
         df_totales = df_calificado.groupBy("Identificacion", "Id_referencia").agg(
             F.sum("dias_mora_total").alias("DiasMoraTotal"),
@@ -415,7 +410,7 @@ def procesamiento_historico_masivo(df_referencias):
             ["Identificacion", "Id_referencia"],
             "LEFT"
         ).filter(
-            F.col("fecha_informacion") == F.col("fecha_informacion_mas_reciente")
+            F.col("VersionDatos") == F.col("fecha_informacion")
         ).select(
             'Id', 'tipo_credito_id', 'codigo_estado_cuenta_id', 'Identificacion',
             'Id_referencia', 'tipo_deudor_id', 'tipo_informacion_id', 

@@ -1,6 +1,5 @@
 from spark_utils import get_spark_session
-from pyspark.sql.functions import col,lit,current_date
-from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
 from datetime import datetime
 from dateutil import relativedelta
 import time
@@ -49,7 +48,6 @@ def main():
                     "dias_mora",
                     "Estado"
                     ).filter(
-                        (col("Identificacion")=="206850212") &
                         (col("dias_mora") > 0) &
                         (col("estado") == 1)
                     )
@@ -58,13 +56,11 @@ def main():
             .select("Id",
                     "Cliente",
                     "VersionDatos"
-                    ).filter(
-                        (col("VersionDatos")>=datetime.now()-relativedelta.relativedelta(months=24)) 
                     )
 
         #Definicion de fechas
         fecha_tope_incio = datetime.now().date()
-        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=24)
+        fecha_tope_final = fecha_tope_incio - relativedelta.relativedelta(months=23)
 
         # Antes del join, renombrar las columnas Id
         df_DatoReferencia = df_DatoReferencia.withColumnRenamed("fuente_informacion_id", "Id_referencia")
@@ -74,8 +70,7 @@ def main():
         # Realizar el Inner Join entre ambas tablas
         inner_join_df = df_DatoReferencia.join(
             df_ClienteFuente,
-            (col("Id_referencia") == col("Id_cliente")) &
-            (col("VersionDatos") == col("fecha_informacion")),
+            col("Id_referencia") == col("Id_cliente"),
             "inner"
             ).filter(
               (col("fecha_informacion")>= fecha_tope_final)
@@ -83,15 +78,8 @@ def main():
 
         result_df = transformar_dataframe(inner_join_df, 
             jdbc_url=jdbc_Historico,
-            props={
-            "user": "Adrian.Araya",
-            "password": "Soporte1990%",
-            "driver": "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-            "encrypt": "true", 
-            "trustServerCertificate":"true"
-            }
+            props=props
         )
-
         # Escribir el DataFrame a la base de datos
         result_df.write \
             .jdbc(url=jdbc_Historico,
