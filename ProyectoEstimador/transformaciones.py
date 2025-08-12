@@ -276,21 +276,21 @@ def procesamiento_historico_masivo(df_referencias):
     
     try:
         df_filtrado = df_referencias.filter(
-            F.col("fecha_informacion") >= F.add_months(F.current_date(), -23)
+            F.col("fecha_informacion") >= F.add_months(F.current_date(), -24)
         )
 
         # 2. Obtener fecha máxima por Identificacion/Id_referencia
         window_spec = Window.partitionBy("Identificacion", "Id_referencia")
         
         df_con_max = df_filtrado.withColumn(
-            "max_fecha", 
-            F.max("fecha_informacion").over(window_spec)
+            "max_fecha",
+            col("VersionDatos")  # Usar fecha actual como referencia
         )
         
         # 3. Calcular fecha_inicio (23 meses antes de max_fecha para tener 24 meses total)
         df_con_fechas = df_con_max.withColumn(
             "fecha_inicio",
-            F.expr("add_months(max_fecha, -23)")  
+            F.add_months(F.current_date(), -24)
         )
         
         # 4. Obtener todas las combinaciones únicas de Identificacion/Id_referencia que tienen datos
